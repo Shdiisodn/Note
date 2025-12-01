@@ -77,6 +77,7 @@ public class NoteEditor extends Activity {
     private int mState;
     private Uri mUri;
     private Cursor mCursor;
+    private EditText mTitle;
     private EditText mText;
     private String mOriginalContent;
 
@@ -227,8 +228,9 @@ public class NoteEditor extends Activity {
         // Sets the layout for this Activity. See res/layout/note_editor.xml
         setContentView(R.layout.note_editor);
 
-        // Gets a handle to the EditText in the the layout.
-        mText = (EditText) findViewById(R.id.note);
+        // 标题和正文的控件
+        mTitle = (EditText) findViewById(R.id.title);
+        mText  = (EditText) findViewById(R.id.note);
 
         /*
          * If this Activity had stopped previously, its state was written the ORIGINAL_CONTENT
@@ -274,6 +276,7 @@ public class NoteEditor extends Activity {
                 Resources res = getResources();
                 String text = String.format(res.getString(R.string.title_edit), title);
                 setTitle(text);
+                mTitle.setText(title);
             // Sets the title to "create" for inserts
             } else if (mState == STATE_INSERT) {
                 setTitle(getText(R.string.title_create));
@@ -348,6 +351,7 @@ public class NoteEditor extends Activity {
 
             // Get the current note text.
             String text = mText.getText().toString();
+            String title = mTitle.getText().toString();
             int length = text.length();
 
             /*
@@ -367,12 +371,13 @@ public class NoteEditor extends Activity {
                  * that is being edited.
                  */
             } else if (mState == STATE_EDIT) {
-                // Creates a map to contain the new values for the columns
-                updateNote(text, null);
+                // 编辑已有笔记：用用户输入的标题；如果没填标题，就传 null，用旧逻辑自动保留
+                updateNote(text, title.isEmpty() ? null : title);
             } else if (mState == STATE_INSERT) {
-                updateNote(text, text);
+                // 新建笔记：如果没填标题，就用正文自动生成；填了就用填的
+                updateNote(text, title.isEmpty() ? null : title);
                 mState = STATE_EDIT;
-          }
+            }
         }
     }
 
@@ -435,9 +440,10 @@ public class NoteEditor extends Activity {
     public boolean onOptionsItemSelected(MenuItem item) {
         // Handle all of the possible menu actions.
         int id = item.getItemId();
-        if(id== R.id.menu_save) {
-            String text = mText.getText().toString();
-            updateNote(text, null);
+        if (id == R.id.menu_save) {
+            String text  = mText.getText().toString();
+            String title = mTitle.getText().toString();
+            updateNote(text, title.isEmpty() ? null : title);
             finish();
         } else if (id == R.id.menu_delete) {
             deleteNote();

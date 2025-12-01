@@ -38,6 +38,12 @@ import android.view.ContextMenu.ContextMenuInfo;
 import android.widget.AdapterView;
 import android.widget.ListView;
 import android.widget.SimpleCursorAdapter;
+import android.widget.TextView;
+import android.text.format.DateFormat;
+import android.app.AlertDialog;
+import android.content.DialogInterface;
+import android.content.ContentValues;
+
 
 
 /**
@@ -55,20 +61,23 @@ public class NotesList extends ListActivity {
     // For logging and debugging
     private static final String TAG = "NotesList";
 
-    /**
-     * The columns needed by the cursor adapter
-     */
+    // 需要从数据库查询的列
     private static final String[] PROJECTION = new String[] {
-            NotePad.Notes._ID, // 0
-            NotePad.Notes.COLUMN_NAME_TITLE, // 1
+            NotePad.Notes._ID,                       // 0
+            NotePad.Notes.COLUMN_NAME_TITLE,         // 1
+            NotePad.Notes.COLUMN_NAME_MODIFICATION_DATE, // 2
+            NotePad.Notes.COLUMN_NAME_CATEGORY       // 3 —— 分类后面会用到，先加上
     };
 
-    /** The index of the title column */
-    private static final int COLUMN_INDEX_TITLE = 1;
+    private SimpleCursorAdapter mAdapter;      // 统一保存适配器
+    private String mCurrentCategoryFilter;     // 当前正在使用的分类过滤（null 表示全部）
 
-    /**
-     * onCreate is called when Android starts this Activity from scratch.
-     */
+    /** 标题列的下标 */
+    private static final int COLUMN_INDEX_TITLE = 1;
+    /** 修改时间列的下标 */
+    private static final int COLUMN_INDEX_MODIFICATION_DATE = 2;
+    /** 分类列的下标 */
+    private static final int COLUMN_INDEX_CATEGORY = 3;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -118,24 +127,57 @@ public class NotesList extends ListActivity {
          */
 
         // The names of the cursor columns to display in the view, initialized to the title column
-        String[] dataColumns = { NotePad.Notes.COLUMN_NAME_TITLE } ;
+        // Cursor 中要拿来展示的两列：标题 + 修改时间
+        String[] dataColumns = {
+                NotePad.Notes.COLUMN_NAME_TITLE,
+                NotePad.Notes.COLUMN_NAME_MODIFICATION_DATE
+        };
 
-        // The view IDs that will display the cursor columns, initialized to the TextView in
-        // noteslist_item.xml
-        int[] viewIDs = { android.R.id.text1 };
+// 显示这两列的控件 id：标题 -> text1，时间 -> text2
+        int[] viewIDs = {
+                android.R.id.text1,
+                android.R.id.text2
+        };
 
-        // Creates the backing adapter for the ListView.
-        SimpleCursorAdapter adapter
-            = new SimpleCursorAdapter(
-                      this,                             // The Context for the ListView
-                      R.layout.noteslist_item,          // Points to the XML for a list item
-                      cursor,                           // The cursor to get items from
-                      dataColumns,
-                      viewIDs
-              );
+        mAdapter = new SimpleCursorAdapter(
+                this,
+                R.layout.noteslist_item,
+                cursor,
+                dataColumns,
+                viewIDs
+        );
+        mAdapter.setViewBinder(new SimpleCursorAdapter.ViewBinder() {
+            @Override
+            public boolean setViewValue(View view, Cursor cursor, int columnIndex) {
+
+                // 处理标题（顺便后面会把分类一起显示）
+                if (columnIndex == COLUMN_INDEX_TITLE) {
+                    String title = cursor.getString(COLUMN_INDEX_TITLE);
+                    String category = cursor.getString(COLUMN_INDEX_CATEGORY);
+                    if (category != null && category.length() > 0) {
+                        // 有分类的话，前面加 [分类]
+                        title = "[" + category + "] " + title;
+                    }
+                    ((TextView) view).setText(title);
+                    return true;
+                }
+
+                // 处理修改时间
+                if (columnIndex == COLUMN_INDEX_MODIFICATION_DATE) {
+                    long time = cursor.getLong(COLUMN_INDEX_MODIFICATION_DATE);
+                    // 自己喜欢的格式都可以，比如 yyyy-MM-dd HH:mm
+                    CharSequence text = DateFormat.format("yyyy-MM-dd HH:mm", time);
+                    ((TextView) view).setText(text);
+                    return true;
+                }
+
+                // 其它列走默认逻辑
+                return false;
+            }
+        });
 
         // Sets the ListView's adapter to be the cursor adapter that was just created.
-        setListAdapter(adapter);
+        setListAdapter(mAdapter);
     }
 
     /**
@@ -263,23 +305,22 @@ public class NotesList extends ListActivity {
      */
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        if (item.getItemId() == R.id.menu_add) {
-            /*
-             * Launches a new Activity using an Intent. The intent filter for the Activity
-             * has to have action ACTION_INSERT. No category is set, so DEFAULT is assumed.
-             * In effect, this starts the NoteEditor Activity in NotePad.
-             */
+        int id = item.getItemId();
+
+        if (id == R.id.menu_add) {
             startActivity(new Intent(Intent.ACTION_INSERT, getIntent().getData()));
             return true;
-        } else if (item.getItemId() == R.id.menu_paste) {
-            /*
-             * Launches a new Activity using an Intent. The intent filter for the Activity
-             * has to have action ACTION_PASTE. No category is set, so DEFAULT is assumed.
-             * In effect, this starts the NoteEditor Activity in NotePad.
-             */
+
+        } else if (id == R.id.menu_paste) {
             startActivity(new Intent(Intent.ACTION_PASTE, getIntent().getData()));
             return true;
+
+        } else if (id == R.id.menu_filter_category) {
+            // 弹出分类筛选对话框
+            showFilterDialog();
+            return true;
         }
+
         return super.onOptionsItemSelected(item);
     }
 
@@ -357,23 +398,100 @@ public class NotesList extends ListActivity {
      * which triggers the default handling of the item.
      * @throws ClassCastException
      */
+
+    /**
+     * 根据分类过滤刷新列表，category 为 null 表示显示全部
+     */
+    private void applyCategoryFilter(String category) {
+        mCurrentCategoryFilter = category;
+
+        Cursor cursor;
+        if (category == null) {
+            // 不加筛选条件，显示全部笔记
+            cursor = managedQuery(
+                    getIntent().getData(),
+                    PROJECTION,
+                    null,
+                    null,
+                    NotePad.Notes.DEFAULT_SORT_ORDER
+            );
+        } else {
+            // 按分类筛选
+            String selection = NotePad.Notes.COLUMN_NAME_CATEGORY + "=?";
+            String[] selectionArgs = new String[]{ category };
+            cursor = managedQuery(
+                    getIntent().getData(),
+                    PROJECTION,
+                    selection,
+                    selectionArgs,
+                    NotePad.Notes.DEFAULT_SORT_ORDER
+            );
+        }
+
+        mAdapter.changeCursor(cursor);
+    }
+
+    /**
+     * 弹出“按分类查看”的对话框
+     */
+    private void showFilterDialog() {
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.menu_filter_category)
+                .setItems(R.array.note_categories_filter, new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        String[] cats = getResources().getStringArray(R.array.note_categories_filter);
+                        if (which == 0) {
+                            // 选择“全部”
+                            applyCategoryFilter(null);
+                        } else {
+                            // 按选择的分类过滤
+                            String category = cats[which];
+                            applyCategoryFilter(category);
+                        }
+                    }
+                })
+                .show();
+    }
+
+    /**
+     * 弹出分类选择对话框，并把选中的分类写入数据库，然后刷新列表
+     */
+    private void showCategoryDialog(final Uri noteUri) {
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.menu_set_category)
+                .setItems(R.array.note_categories, new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        // 取出选中的分类文字
+                        String[] categories = getResources().getStringArray(R.array.note_categories);
+                        String category = categories[which];
+
+                        // 要更新的字段
+                        ContentValues values = new ContentValues();
+                        values.put(NotePad.Notes.COLUMN_NAME_CATEGORY, category);
+
+                        // 写回数据库
+                        getContentResolver().update(noteUri, values, null, null);
+
+                        // 重新查询，刷新列表
+                        Cursor cursor = managedQuery(
+                                getIntent().getData(),
+                                PROJECTION,
+                                null,
+                                null,
+                                NotePad.Notes.DEFAULT_SORT_ORDER);
+
+                        ((SimpleCursorAdapter) getListAdapter()).changeCursor(cursor);
+                    }
+                })
+                .show();
+    }
     @Override
     public boolean onContextItemSelected(MenuItem item) {
         // The data from the menu item.
         AdapterView.AdapterContextMenuInfo info;
 
-        /*
-         * Gets the extra info from the menu item. When an note in the Notes list is long-pressed, a
-         * context menu appears. The menu items for the menu automatically get the data
-         * associated with the note that was long-pressed. The data comes from the provider that
-         * backs the list.
-         *
-         * The note's data is passed to the context menu creation routine in a ContextMenuInfo
-         * object.
-         *
-         * When one of the context menu items is clicked, the same data is passed, along with the
-         * note ID, to onContextItemSelected() via the item parameter.
-         */
         try {
             // Casts the data object in the item into the type for AdapterView objects.
             info = (AdapterView.AdapterContextMenuInfo) item.getMenuInfo();
@@ -385,45 +503,43 @@ public class NotesList extends ListActivity {
             // Triggers default processing of the menu item.
             return false;
         }
+
         // Appends the selected note's ID to the URI sent with the incoming Intent.
         Uri noteUri = ContentUris.withAppendedId(getIntent().getData(), info.id);
 
-        /*
-         * Gets the menu item's ID and compares it to known actions.
-         */
+        // Gets the menu item's ID and compares it to known actions.
         int id = item.getItemId();
+
         if (id == R.id.context_open) {
             // Launch activity to view/edit the currently selected item
             startActivity(new Intent(Intent.ACTION_EDIT, noteUri));
             return true;
-        } else if (id == R.id.context_copy) { //BEGIN_INCLUDE(copy)
-            // Gets a handle to the clipboard service.
+
+        } else if (id == R.id.context_copy) {   // 复制
             ClipboardManager clipboard = (ClipboardManager)
                     getSystemService(Context.CLIPBOARD_SERVICE);
 
-            // Copies the notes URI to the clipboard. In effect, this copies the note itself
-            clipboard.setPrimaryClip(ClipData.newUri(   // new clipboard item holding a URI
-                    getContentResolver(),               // resolver to retrieve URI info
-                    "Note",                             // label for the clip
-                    noteUri));                          // the URI
+            clipboard.setPrimaryClip(ClipData.newUri(
+                    getContentResolver(),
+                    "Note",
+                    noteUri));
 
-            // Returns to the caller and skips further processing.
             return true;
-            //END_INCLUDE(copy)
-        } else if (id == R.id.context_delete) {
+
+        } else if (id == R.id.context_set_category) {   // 设置分类
+            showCategoryDialog(noteUri);
+            return true;
+
+        } else if (id == R.id.context_delete) {         // 删除
             // Deletes the note from the provider by passing in a URI in note ID format.
-            // Please see the introductory note about performing provider operations on the
-            // UI thread.
             getContentResolver().delete(
                     noteUri,  // The URI of the provider
-                    null,     // No where clause is needed, since only a single note ID is being
-                    // passed in.
+                    null,     // No where clause is needed, since only a single note ID is being passed in.
                     null      // No where clause is used, so no where arguments are needed.
             );
-
-            // Returns to the caller and skips further processing.
             return true;
         }
+
         return super.onContextItemSelected(item);
     }
 

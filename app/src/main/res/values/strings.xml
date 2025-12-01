@@ -15,29 +15,56 @@
 -->
 
 <resources>
-    <string name="app_name">NotePad</string>
-    <string name="live_folder_name">Notes</string>
+    <string name="app_name">记事本</string>
+    <string name="live_folder_name">笔记</string>
 
-    <string name="title_edit_title">Note title:</string>
-    <string name="title_create">New note</string>
-    <string name="title_edit">Edit: %1$s</string>
-    <string name="title_notes_list">Notes</string>
+    <string name="title_edit_title">笔记标题:</string>
+    <string name="title_create">新笔记</string>
+    <string name="title_edit">编辑: %1$s</string>
+    <string name="title_notes_list">笔记</string>
 
-    <string name="menu_add">New note</string>
-    <string name="menu_save">Save</string>
-    <string name="menu_delete">Delete</string>
-    <string name="menu_open">Open</string>
-    <string name="menu_revert">Revert changes</string>
-    <string name="menu_copy">Copy</string>
-    <string name="menu_paste">Paste</string>
+    <string name="menu_add">新笔记</string>
+    <string name="menu_save">保存</string>
+    <string name="menu_delete">删除</string>
+    <string name="menu_open">打开</string>
+    <string name="menu_revert">还原更改</string>
+    <string name="menu_copy">复制</string>
+    <string name="menu_paste">粘贴</string>
 
-    <string name="button_ok">OK</string>
-    <string name="text_title">Title:</string>
+    <string name="button_ok">好</string>
+    <string name="text_title">标题:</string>
 
-    <string name="resolve_edit">Edit note</string>
-    <string name="resolve_title">Edit title</string>
+    <string name="resolve_edit">编辑笔记</string>
+    <string name="resolve_title">编辑标题</string>
 
-    <string name="error_title">Error</string>
-    <string name="error_message">Error loading note</string>
-    <string name="nothing_to_save">There is nothing to save</string>
+    <string name="error_title">错误</string>
+    <string name="error_message">加载笔记出现错误</string>
+    <string name="nothing_to_save">无可保存内容</string>
+    <string name="hint_title">标题</string>
+    <!-- 笔记分类相关 -->
+    <string name="menu_set_category">设置分类</string>
+    <string name="category_work">工作</string>
+    <string name="category_study">学习</string>
+    <string name="category_life">生活</string>
+    <string name="category_other">其他</string>
+
+    <!-- 分类选择列表 -->
+    <string-array name="note_categories">
+        <item>@string/category_work</item>
+        <item>@string/category_study</item>
+        <item>@string/category_life</item>
+        <item>@string/category_other</item>
+    </string-array>
+    <!-- 菜单：按分类查看 -->
+    <string name="menu_filter_category">按分类查看</string>
+    <string name="category_all">全部</string>
+
+    <!-- 分类筛选用的列表：多一个“全部” -->
+    <string-array name="note_categories_filter">
+        <item>@string/category_all</item>
+        <item>@string/category_work</item>
+        <item>@string/category_study</item>
+        <item>@string/category_life</item>
+        <item>@string/category_other</item>
+    </string-array>
 </resources>
