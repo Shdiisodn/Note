@@ -1,27 +1,34 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="?android:attr/listPreferredItemHeight"
+    android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:paddingLeft="8dp"
-    android:paddingRight="8dp"
-    android:gravity="center_vertical">
+    android:layout_marginLeft="12dp"
+    android:layout_marginRight="12dp"
+    android:layout_marginTop="6dp"
+    android:layout_marginBottom="6dp"
+    android:background="@drawable/bg_note_item">
 
-    <!-- 标题 -->
+    <!-- 标题（包含你在代码里拼上的 [分类] 前缀） -->
     <TextView
         android:id="@android:id/text1"
         android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
+        android:layout_height="wrap_content"
         android:singleLine="true"
         android:ellipsize="end"
-        android:textAppearance="?android:attr/textAppearanceMedium" />
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:textColor="@color/colorTextPrimary"
+        android:paddingTop="2dp"
+        android:paddingBottom="2dp" />
 
     <!-- 时间戳 -->
     <TextView
         android:id="@android:id/text2"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:textSize="12sp" />
-    <!-- 想好看一点可以顺便加个 textColor，比如 #888888 -->
+        android:textSize="12sp"
+        android:textColor="@color/colorTimestamp"
+        android:paddingBottom="2dp" />
+
 </LinearLayout>

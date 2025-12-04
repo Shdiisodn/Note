@@ -2,7 +2,19 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:orientation="vertical"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:background="@color/colorBackground"
+    android:padding="16dp">
+
+    <!-- “标题”小标签 -->
+    <TextView
+        android:id="@+id/label_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/hint_title"
+        android:textSize="13sp"
+        android:textColor="@color/colorTextSecondary"
+        android:paddingBottom="4dp" />
 
     <!-- 标题输入框 -->
     <EditText
@@ -14,21 +26,44 @@
         android:maxLines="1"
         android:inputType="textCapSentences"
         android:textSize="18sp"
-        android:padding="8dp" />
+        android:background="@android:color/transparent"
+        android:paddingLeft="0dp"
+        android:paddingRight="0dp"
+        android:paddingTop="4dp"
+        android:paddingBottom="8dp"
+        android:textColor="@color/colorTextPrimary" />
 
-    <!-- 正文，多行文本 -->
+    <!-- 蓝色下划线 -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="@color/colorAccent" />
+
+    <!-- “内容”标签，可以随便用一个文案 -->
+    <TextView
+        android:id="@+id/label_content"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/app_name"
+        android:textSize="13sp"
+        android:textColor="@color/colorTextSecondary"
+        android:paddingTop="12dp"
+        android:paddingBottom="4dp" />
+
+    <!-- 正文输入区域：白色大卡片 -->
     <view
         class="com.example.android.notepad.NoteEditor$LinedEditText"
         android:id="@+id/note"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:background="@android:color/transparent"
-        android:padding="5dp"
+        android:background="@color/colorCard"
+        android:padding="12dp"
         android:scrollbars="vertical"
         android:fadingEdge="vertical"
         android:gravity="top"
-        android:textSize="22sp"
-        android:inputType="textMultiLine|textCapSentences"
-        />
+        android:textSize="16sp"
+        android:textColor="@color/colorTextPrimary"
+        android:inputType="textMultiLine|textCapSentences" />
+
 </LinearLayout>

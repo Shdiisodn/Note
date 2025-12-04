@@ -43,6 +43,9 @@ import android.text.format.DateFormat;
 import android.app.AlertDialog;
 import android.content.DialogInterface;
 import android.content.ContentValues;
+import android.widget.SearchView;
+import java.util.ArrayList;
+
 
 
 
@@ -71,6 +74,7 @@ public class NotesList extends ListActivity {
 
     private SimpleCursorAdapter mAdapter;      // 统一保存适配器
     private String mCurrentCategoryFilter;     // 当前正在使用的分类过滤（null 表示全部）
+    private String mCurrentQuery = null; // 当前的搜索关键字，null 表示不搜索
 
     /** 标题列的下标 */
     private static final int COLUMN_INDEX_TITLE = 1;
@@ -104,7 +108,16 @@ public class NotesList extends ListActivity {
          * ListView, and the context menu is handled by a method in NotesList.
          */
         getListView().setOnCreateContextMenuListener(this);
-
+        ListView listView = getListView();
+        // 整体背景改成浅色
+        listView.setBackgroundColor(getResources().getColor(R.color.colorBackground));
+        // 去掉默认的分割线
+        listView.setDivider(null);
+        listView.setDividerHeight(0);
+        // 为了让第一个/最后一个 item 不贴边
+        int padding = (int) (getResources().getDisplayMetrics().density * 8); // 8dp
+        listView.setPadding(0, padding, 0, padding);
+        listView.setClipToPadding(false);
         /* Performs a managed query. The Activity handles closing and requerying the cursor
          * when needed.
          *
@@ -195,18 +208,61 @@ public class NotesList extends ListActivity {
      */
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
-        // Inflate menu from XML resource
         MenuInflater inflater = getMenuInflater();
         inflater.inflate(R.menu.list_options_menu, menu);
 
-        // Generate any additional actions that can be performed on the
-        // overall list.  In a normal install, there are no additional
-        // actions found here, but this allows other applications to extend
-        // our menu with their own actions.
+        // 保留原来的 intent alternatives 逻辑（unchanged）
         Intent intent = new Intent(null, getIntent().getData());
         intent.addCategory(Intent.CATEGORY_ALTERNATIVE);
         menu.addIntentOptions(Menu.CATEGORY_ALTERNATIVE, 0, 0,
                 new ComponentName(this, NotesList.class), null, intent, 0, null);
+
+        // ===== 使用系统 SearchView 的监听实现 =====
+        MenuItem searchItem = menu.findItem(R.id.menu_search);
+        if (searchItem != null) {
+            // 先尝试从 MenuItem 拿到现成的 action view
+            SearchView tmp = (SearchView) searchItem.getActionView();
+
+            // 如果为空就创建一个新的 SearchView 并设置到 MenuItem 上
+            if (tmp == null) {
+                tmp = new SearchView(this);
+                searchItem.setActionView(tmp);
+            }
+
+            // 把最终使用的 SearchView 存进 final 变量，供匿名类访问
+            final SearchView searchViewFinal = tmp;
+
+            searchViewFinal.setQueryHint(getString(R.string.menu_search));
+
+            searchViewFinal.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
+                @Override
+                public boolean onQueryTextSubmit(String query) {
+                    applyFilters(mCurrentCategoryFilter, query);
+                    searchViewFinal.clearFocus();
+                    return true;
+                }
+
+                @Override
+                public boolean onQueryTextChange(String newText) {
+                    applyFilters(mCurrentCategoryFilter, newText);
+                    return true;
+                }
+            });
+
+            // 当搜索框折叠关闭时清空查询条件（恢复为仅按分类或全部）
+            searchItem.setOnActionExpandListener(new MenuItem.OnActionExpandListener() {
+                @Override
+                public boolean onMenuItemActionExpand(MenuItem item) {
+                    return true;
+                }
+
+                @Override
+                public boolean onMenuItemActionCollapse(MenuItem item) {
+                    applyFilters(mCurrentCategoryFilter, null);
+                    return true;
+                }
+            });
+        }
 
         return super.onCreateOptionsMenu(menu);
     }
@@ -386,6 +442,59 @@ public class NotesList extends ListActivity {
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         menu.addIntentOptions(Menu.CATEGORY_ALTERNATIVE, 0, 0,
                 new ComponentName(this, NotesList.class), null, intent, 0, null);
+    }
+
+    /**
+     * 统一应用分类过滤 + 搜索关键字过滤（category == null 表示全部，query == null 或 "" 表示不按关键字过滤）
+     */
+    private void applyFilters(String category, String query) {
+        mCurrentCategoryFilter = category;
+        mCurrentQuery = (query != null && query.trim().length() > 0) ? query.trim() : null;
+
+        String selection = null;
+        String[] selectionArgs = null;
+
+        ArrayList<String> parts = new ArrayList<>();
+        ArrayList<String> args = new ArrayList<>();
+
+        if (mCurrentCategoryFilter != null) {
+            parts.add(NotePad.Notes.COLUMN_NAME_CATEGORY + "=?");
+            args.add(mCurrentCategoryFilter);
+        }
+
+        if (mCurrentQuery != null) {
+            parts.add("(" + NotePad.Notes.COLUMN_NAME_TITLE + " LIKE ? OR "
+                    + NotePad.Notes.COLUMN_NAME_NOTE + " LIKE ?)");
+            String like = "%" + mCurrentQuery + "%";
+            args.add(like);
+            args.add(like);
+        }
+
+        if (!parts.isEmpty()) {
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < parts.size(); i++) {
+                if (i > 0) sb.append(" AND ");
+                sb.append(parts.get(i));
+            }
+            selection = sb.toString();
+            selectionArgs = args.toArray(new String[0]);
+        }
+
+        Cursor cursor = managedQuery(
+                getIntent().getData(),
+                PROJECTION,
+                selection,
+                selectionArgs,
+                NotePad.Notes.DEFAULT_SORT_ORDER
+        );
+
+        if (mAdapter != null) {
+            mAdapter.changeCursor(cursor);
+        } else {
+            setListAdapter(new SimpleCursorAdapter(this, R.layout.noteslist_item, cursor,
+                    new String[]{NotePad.Notes.COLUMN_NAME_TITLE, NotePad.Notes.COLUMN_NAME_MODIFICATION_DATE},
+                    new int[]{android.R.id.text1, android.R.id.text2}));
+        }
     }
 
     /**

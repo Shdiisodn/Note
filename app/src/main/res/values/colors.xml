@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 主色：蓝色 -->
+    <color name="colorPrimary">#2196F3</color>
+    <color name="colorPrimaryDark">#1976D2</color>
+    <color name="colorAccent">#64B5F6</color>
+
+    <!-- 背景、卡片 -->
+    <color name="colorBackground">#F3F6FA</color>
+    <color name="colorCard">#FFFFFF</color>
+
+    <!-- 文字色 -->
+    <color name="colorTextPrimary">#222222</color>
+    <color name="colorTextSecondary">#607D8B</color>
+    <color name="colorTimestamp">#9E9E9E</color>
+</resources>

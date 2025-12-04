@@ -1,18 +1,33 @@
 <?xml version="1.0" encoding="utf-8"?>
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
-    <!--  This is our one standard application action (creating a new note). -->
-    <item android:id="@+id/menu_add"
-          android:icon="@drawable/ic_menu_compose"
-          android:title="@string/menu_add"
-          android:alphabeticShortcut='a'
-          android:showAsAction="always" />
 
-    <!-- 新增：按分类查看 -->
-    <item android:id="@+id/menu_filter_category"
+    <!-- 新建笔记 -->
+    <item
+        android:id="@+id/menu_add"
+        android:icon="@drawable/ic_menu_compose"
+        android:title="@string/menu_add"
+        android:showAsAction="always" />
+
+    <!-- 按分类查看 -->
+    <item
+        android:id="@+id/menu_filter_category"
         android:title="@string/menu_filter_category"
-        android:icon="@android:drawable/ic_menu_sort_by_size" />
+        android:icon="@android:drawable/ic_menu_sort_by_size"
+        android:showAsAction="never" />
 
-    <item android:id="@+id/menu_paste"
+    <!-- 系统 SearchView（兼容无 AppCompat 项目） -->
+    <item
+        android:id="@+id/menu_search"
+        android:title="@string/menu_search"
+        android:icon="@android:drawable/ic_menu_search"
+        android:actionViewClass="android.widget.SearchView"
+        android:showAsAction="ifRoom|collapseActionView" />
+
+    <!-- 粘贴 -->
+    <item
+        android:id="@+id/menu_paste"
         android:title="@string/menu_paste"
-        android:icon="@android:drawable/ic_menu_set_as" />
+        android:icon="@android:drawable/ic_menu_set_as"
+        android:showAsAction="never" />
+
 </menu>
