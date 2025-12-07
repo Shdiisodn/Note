@@ -1,13 +1,28 @@
 <?xml version="1.0" encoding="utf-8"?>
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:id="@+id/context_open"
-          android:title="@string/menu_open" />
-    <item android:id="@+id/context_copy"
-          android:title="@string/menu_copy" />
-    <!-- 新增：设置分类 -->
-    <item android:id="@+id/context_set_category"
+    <item
+        android:id="@+id/context_open"
+        android:title="@string/menu_open" />
+
+    <item
+        android:id="@+id/context_copy"
+        android:title="@string/menu_copy" />
+
+    <!-- 设置分类 -->
+    <item
+        android:id="@+id/context_set_category"
         android:title="@string/menu_set_category" />
 
-    <item android:id="@+id/context_delete"
+    <!-- 待办相关 -->
+    <item
+        android:id="@+id/context_toggle_todo"
+        android:title="@string/menu_set_todo" />
+
+    <item
+        android:id="@+id/context_toggle_done"
+        android:title="@string/menu_mark_done" />
+
+    <item
+        android:id="@+id/context_delete"
         android:title="@string/menu_delete" />
 </menu>

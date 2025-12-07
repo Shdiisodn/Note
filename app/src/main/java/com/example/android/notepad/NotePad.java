@@ -152,5 +152,10 @@ public final class NotePad {
         public static final String COLUMN_NAME_MODIFICATION_DATE = "modified";
 
         public static final String COLUMN_NAME_CATEGORY = "category";
+
+        // 是否待办：0 = 普通笔记，1 = 待办
+        public static final String COLUMN_NAME_IS_TODO = "is_todo";
+        // 待办是否完成：0 = 未完成，1 = 已完成
+        public static final String COLUMN_NAME_IS_DONE = "is_done";
     }
 }

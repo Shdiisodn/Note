@@ -63,7 +63,7 @@ public class NotePadProvider extends ContentProvider implements PipeDataWriter<C
     /**
      * The database version
      */
-    private static final int DATABASE_VERSION = 3;
+    private static final int DATABASE_VERSION = 4;
 
     /**
      * A projection map used to select columns from the database
@@ -172,6 +172,11 @@ public class NotePadProvider extends ContentProvider implements PipeDataWriter<C
 
         sNotesProjectionMap.put(NotePad.Notes.COLUMN_NAME_CATEGORY,
                 NotePad.Notes.COLUMN_NAME_CATEGORY);
+        sNotesProjectionMap.put(NotePad.Notes.COLUMN_NAME_CATEGORY, NotePad.Notes.COLUMN_NAME_CATEGORY);
+
+        // 新增：待办相关列的映射
+        sNotesProjectionMap.put(NotePad.Notes.COLUMN_NAME_IS_TODO, NotePad.Notes.COLUMN_NAME_IS_TODO);
+        sNotesProjectionMap.put(NotePad.Notes.COLUMN_NAME_IS_DONE, NotePad.Notes.COLUMN_NAME_IS_DONE);
     }
 
     /**
@@ -200,7 +205,9 @@ public class NotePadProvider extends ContentProvider implements PipeDataWriter<C
                    + NotePad.Notes.COLUMN_NAME_NOTE + " TEXT,"
                    + NotePad.Notes.COLUMN_NAME_CREATE_DATE + " INTEGER,"
                    + NotePad.Notes.COLUMN_NAME_MODIFICATION_DATE + " INTEGER,"
-                   + NotePad.Notes.COLUMN_NAME_CATEGORY + " TEXT"
+                   + NotePad.Notes.COLUMN_NAME_CATEGORY + " TEXT,"
+                   + NotePad.Notes.COLUMN_NAME_IS_TODO + " INTEGER DEFAULT 0,"
+                   + NotePad.Notes.COLUMN_NAME_IS_DONE + " INTEGER DEFAULT 0"
                    + ");");
        }
 
@@ -213,15 +220,7 @@ public class NotePadProvider extends ContentProvider implements PipeDataWriter<C
         */
        @Override
        public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
-
-           // Logs that the database is being upgraded
-           Log.w(TAG, "Upgrading database from version " + oldVersion + " to "
-                   + newVersion + ", which will destroy all old data");
-
-           // Kills the table and existing data
-           db.execSQL("DROP TABLE IF EXISTS notes");
-
-           // Recreates the database with a new version
+           db.execSQL("DROP TABLE IF EXISTS " + NotePad.Notes.TABLE_NAME);
            onCreate(db);
        }
    }

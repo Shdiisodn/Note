@@ -15,7 +15,23 @@
         android:icon="@android:drawable/ic_menu_sort_by_size"
         android:showAsAction="never" />
 
-    <!-- 系统 SearchView（兼容无 AppCompat 项目） -->
+    <!-- 待办筛选 -->
+    <item
+        android:id="@+id/menu_show_all"
+        android:title="@string/menu_show_all"
+        android:showAsAction="never" />
+
+    <item
+        android:id="@+id/menu_show_todo"
+        android:title="@string/menu_show_todo"
+        android:showAsAction="never" />
+
+    <item
+        android:id="@+id/menu_show_done"
+        android:title="@string/menu_show_done"
+        android:showAsAction="never" />
+
+    <!-- 搜索 -->
     <item
         android:id="@+id/menu_search"
         android:title="@string/menu_search"

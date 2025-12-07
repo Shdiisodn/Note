@@ -69,4 +69,14 @@
         <item>@string/category_life</item>
         <item>@string/category_other</item>
     </string-array>
+
+    <!-- 待办功能相关 -->
+    <string name="menu_show_all">全部笔记</string>
+    <string name="menu_show_todo">仅看待办</string>
+    <string name="menu_show_done">仅看已完成</string>
+
+    <string name="menu_set_todo">设为待办事项</string>
+    <string name="menu_unset_todo">取消待办</string>
+    <string name="menu_mark_done">标记为已完成</string>
+    <string name="menu_mark_undone">标记为未完成</string>
 </resources>

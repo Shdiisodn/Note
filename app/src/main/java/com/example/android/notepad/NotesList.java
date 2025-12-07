@@ -45,6 +45,7 @@ import android.content.DialogInterface;
 import android.content.ContentValues;
 import android.widget.SearchView;
 import java.util.ArrayList;
+import android.graphics.Paint;
 
 
 
@@ -69,12 +70,20 @@ public class NotesList extends ListActivity {
             NotePad.Notes._ID,                       // 0
             NotePad.Notes.COLUMN_NAME_TITLE,         // 1
             NotePad.Notes.COLUMN_NAME_MODIFICATION_DATE, // 2
-            NotePad.Notes.COLUMN_NAME_CATEGORY       // 3 —— 分类后面会用到，先加上
+            NotePad.Notes.COLUMN_NAME_CATEGORY,      // 3 —— 分类
+            NotePad.Notes.COLUMN_NAME_IS_TODO,       // 4 —— 是否待办
+            NotePad.Notes.COLUMN_NAME_IS_DONE        // 5 —— 是否已完成
     };
 
     private SimpleCursorAdapter mAdapter;      // 统一保存适配器
     private String mCurrentCategoryFilter;     // 当前正在使用的分类过滤（null 表示全部）
-    private String mCurrentQuery = null; // 当前的搜索关键字，null 表示不搜索
+    private String mCurrentQuery = null;       // 当前的搜索关键字，null 表示不搜索
+
+    // 待办筛选：0=全部，1=只看待办(未完成)，2=只看已完成
+    private static final int TODO_FILTER_ALL = 0;
+    private static final int TODO_FILTER_ONLY_TODO = 1;
+    private static final int TODO_FILTER_ONLY_DONE = 2;
+    private int mCurrentTodoFilter = TODO_FILTER_ALL;
 
     /** 标题列的下标 */
     private static final int COLUMN_INDEX_TITLE = 1;
@@ -82,6 +91,10 @@ public class NotesList extends ListActivity {
     private static final int COLUMN_INDEX_MODIFICATION_DATE = 2;
     /** 分类列的下标 */
     private static final int COLUMN_INDEX_CATEGORY = 3;
+    /** 是否待办列的下标 */
+    private static final int COLUMN_INDEX_IS_TODO = 4;
+    /** 是否完成列的下标 */
+    private static final int COLUMN_INDEX_IS_DONE = 5;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -163,22 +176,43 @@ public class NotesList extends ListActivity {
             @Override
             public boolean setViewValue(View view, Cursor cursor, int columnIndex) {
 
-                // 处理标题（顺便后面会把分类一起显示）
+                // 处理标题（这里顺便把分类和待办状态一起显示）
                 if (columnIndex == COLUMN_INDEX_TITLE) {
                     String title = cursor.getString(COLUMN_INDEX_TITLE);
                     String category = cursor.getString(COLUMN_INDEX_CATEGORY);
+                    int isTodo = cursor.getInt(COLUMN_INDEX_IS_TODO);
+                    int isDone = cursor.getInt(COLUMN_INDEX_IS_DONE);
+
+                    // 分类前缀
                     if (category != null && category.length() > 0) {
-                        // 有分类的话，前面加 [分类]
                         title = "[" + category + "] " + title;
                     }
-                    ((TextView) view).setText(title);
+
+                    // 待办前缀：未完成用 •，已完成用 ✓
+                    if (isTodo == 1) {
+                        if (isDone == 1) {
+                            title = "✓ " + title;
+                        } else {
+                            title = "• " + title;
+                        }
+                    }
+
+                    TextView tv = (TextView) view;
+                    tv.setText(title);
+
+                    // 已完成的待办加删除线
+                    if (isTodo == 1 && isDone == 1) {
+                        tv.setPaintFlags(tv.getPaintFlags() | Paint.STRIKE_THRU_TEXT_FLAG);
+                    } else {
+                        tv.setPaintFlags(tv.getPaintFlags() & (~Paint.STRIKE_THRU_TEXT_FLAG));
+                    }
+
                     return true;
                 }
 
                 // 处理修改时间
                 if (columnIndex == COLUMN_INDEX_MODIFICATION_DATE) {
                     long time = cursor.getLong(COLUMN_INDEX_MODIFICATION_DATE);
-                    // 自己喜欢的格式都可以，比如 yyyy-MM-dd HH:mm
                     CharSequence text = DateFormat.format("yyyy-MM-dd HH:mm", time);
                     ((TextView) view).setText(text);
                     return true;
@@ -375,6 +409,21 @@ public class NotesList extends ListActivity {
             // 弹出分类筛选对话框
             showFilterDialog();
             return true;
+
+        } else if (id == R.id.menu_show_all) {
+            mCurrentTodoFilter = TODO_FILTER_ALL;
+            applyFilters(mCurrentCategoryFilter, mCurrentQuery);
+            return true;
+
+        } else if (id == R.id.menu_show_todo) {
+            mCurrentTodoFilter = TODO_FILTER_ONLY_TODO;
+            applyFilters(mCurrentCategoryFilter, mCurrentQuery);
+            return true;
+
+        } else if (id == R.id.menu_show_done) {
+            mCurrentTodoFilter = TODO_FILTER_ONLY_DONE;
+            applyFilters(mCurrentCategoryFilter, mCurrentQuery);
+            return true;
         }
 
         return super.onOptionsItemSelected(item);
@@ -399,28 +448,15 @@ public class NotesList extends ListActivity {
         // The data from the menu item.
         AdapterView.AdapterContextMenuInfo info;
 
-        // Tries to get the position of the item in the ListView that was long-pressed.
         try {
-            // Casts the incoming data object into the type for AdapterView objects.
             info = (AdapterView.AdapterContextMenuInfo) menuInfo;
         } catch (ClassCastException e) {
-            // If the menu object can't be cast, logs an error.
             Log.e(TAG, "bad menuInfo", e);
             return;
         }
 
-        /*
-         * Gets the data associated with the item at the selected position. getItem() returns
-         * whatever the backing adapter of the ListView has associated with the item. In NotesList,
-         * the adapter associated all of the data for a note with its list item. As a result,
-         * getItem() returns that data as a Cursor.
-         */
         Cursor cursor = (Cursor) getListAdapter().getItem(info.position);
-
-        // If the cursor is empty, then for some reason the adapter can't get the data from the
-        // provider, so returns null to the caller.
         if (cursor == null) {
-            // For some reason the requested item isn't available, do nothing
             return;
         }
 
@@ -428,16 +464,30 @@ public class NotesList extends ListActivity {
         MenuInflater inflater = getMenuInflater();
         inflater.inflate(R.menu.list_context_menu, menu);
 
+        // 根据当前行的待办状态，动态修改菜单文字/可见性
+        int isTodo = cursor.getInt(COLUMN_INDEX_IS_TODO);
+        int isDone = cursor.getInt(COLUMN_INDEX_IS_DONE);
+
+        MenuItem todoItem = menu.findItem(R.id.context_toggle_todo);
+        MenuItem doneItem = menu.findItem(R.id.context_toggle_done);
+
+        if (todoItem != null) {
+            todoItem.setTitle(isTodo == 1 ? R.string.menu_unset_todo : R.string.menu_set_todo);
+        }
+        if (doneItem != null) {
+            if (isTodo == 1) {
+                doneItem.setVisible(true);
+                doneItem.setTitle(isDone == 1 ? R.string.menu_mark_undone : R.string.menu_mark_done);
+            } else {
+                doneItem.setVisible(false);
+            }
+        }
+
         // Sets the menu header to be the title of the selected note.
         menu.setHeaderTitle(cursor.getString(COLUMN_INDEX_TITLE));
 
-        // Append to the
-        // menu items for any other activities that can do stuff with it
-        // as well.  This does a query on the system for any activities that
-        // implement the ALTERNATIVE_ACTION for our data, adding a menu item
-        // for each one that is found.
-        Intent intent = new Intent(null, Uri.withAppendedPath(getIntent().getData(), 
-                                        Integer.toString((int) info.id) ));
+        Intent intent = new Intent(null, Uri.withAppendedPath(getIntent().getData(),
+                Integer.toString((int) info.id)));
         intent.addCategory(Intent.CATEGORY_ALTERNATIVE);
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         menu.addIntentOptions(Menu.CATEGORY_ALTERNATIVE, 0, 0,
@@ -446,6 +496,11 @@ public class NotesList extends ListActivity {
 
     /**
      * 统一应用分类过滤 + 搜索关键字过滤（category == null 表示全部，query == null 或 "" 表示不按关键字过滤）
+     */
+    /**
+     * 统一应用分类过滤 + 搜索关键字过滤 + 待办状态过滤
+     * category == null 表示全部，query == null 或 "" 表示不按关键字过滤，
+     * mCurrentTodoFilter 决定是否只看待办/已完成。
      */
     private void applyFilters(String category, String query) {
         mCurrentCategoryFilter = category;
@@ -457,17 +512,32 @@ public class NotesList extends ListActivity {
         ArrayList<String> parts = new ArrayList<>();
         ArrayList<String> args = new ArrayList<>();
 
+        // 分类
         if (mCurrentCategoryFilter != null) {
             parts.add(NotePad.Notes.COLUMN_NAME_CATEGORY + "=?");
             args.add(mCurrentCategoryFilter);
         }
 
+        // 搜索关键字（标题 + 正文）
         if (mCurrentQuery != null) {
             parts.add("(" + NotePad.Notes.COLUMN_NAME_TITLE + " LIKE ? OR "
                     + NotePad.Notes.COLUMN_NAME_NOTE + " LIKE ?)");
             String like = "%" + mCurrentQuery + "%";
             args.add(like);
             args.add(like);
+        }
+
+        // 待办状态
+        if (mCurrentTodoFilter == TODO_FILTER_ONLY_TODO) {
+            parts.add(NotePad.Notes.COLUMN_NAME_IS_TODO + "=?");
+            parts.add(NotePad.Notes.COLUMN_NAME_IS_DONE + "=?");
+            args.add("1");
+            args.add("0");
+        } else if (mCurrentTodoFilter == TODO_FILTER_ONLY_DONE) {
+            parts.add(NotePad.Notes.COLUMN_NAME_IS_TODO + "=?");
+            parts.add(NotePad.Notes.COLUMN_NAME_IS_DONE + "=?");
+            args.add("1");
+            args.add("1");
         }
 
         if (!parts.isEmpty()) {
@@ -491,9 +561,10 @@ public class NotesList extends ListActivity {
         if (mAdapter != null) {
             mAdapter.changeCursor(cursor);
         } else {
-            setListAdapter(new SimpleCursorAdapter(this, R.layout.noteslist_item, cursor,
+            mAdapter = new SimpleCursorAdapter(this, R.layout.noteslist_item, cursor,
                     new String[]{NotePad.Notes.COLUMN_NAME_TITLE, NotePad.Notes.COLUMN_NAME_MODIFICATION_DATE},
-                    new int[]{android.R.id.text1, android.R.id.text2}));
+                    new int[]{android.R.id.text1, android.R.id.text2});
+            setListAdapter(mAdapter);
         }
     }
 
@@ -511,33 +582,12 @@ public class NotesList extends ListActivity {
     /**
      * 根据分类过滤刷新列表，category 为 null 表示显示全部
      */
-    private void applyCategoryFilter(String category) {
+    /**
+     * 只改变分类筛选，然后统一走 applyFilters，保证和搜索/待办逻辑一致
+     */
+    void applyCategoryFilter(String category) {
         mCurrentCategoryFilter = category;
-
-        Cursor cursor;
-        if (category == null) {
-            // 不加筛选条件，显示全部笔记
-            cursor = managedQuery(
-                    getIntent().getData(),
-                    PROJECTION,
-                    null,
-                    null,
-                    NotePad.Notes.DEFAULT_SORT_ORDER
-            );
-        } else {
-            // 按分类筛选
-            String selection = NotePad.Notes.COLUMN_NAME_CATEGORY + "=?";
-            String[] selectionArgs = new String[]{ category };
-            cursor = managedQuery(
-                    getIntent().getData(),
-                    PROJECTION,
-                    selection,
-                    selectionArgs,
-                    NotePad.Notes.DEFAULT_SORT_ORDER
-            );
-        }
-
-        mAdapter.changeCursor(cursor);
+        applyFilters(mCurrentCategoryFilter, mCurrentQuery);
     }
 
     /**
@@ -596,6 +646,7 @@ public class NotesList extends ListActivity {
                 })
                 .show();
     }
+
     @Override
     public boolean onContextItemSelected(MenuItem item) {
         // The data from the menu item.
@@ -613,7 +664,7 @@ public class NotesList extends ListActivity {
             return false;
         }
 
-        // Appends the selected note's ID to the URI sent with the incoming Intent.
+        // Gets the URI of the note that was long-pressed.
         Uri noteUri = ContentUris.withAppendedId(getIntent().getData(), info.id);
 
         // Gets the menu item's ID and compares it to known actions.
@@ -637,6 +688,38 @@ public class NotesList extends ListActivity {
 
         } else if (id == R.id.context_set_category) {   // 设置分类
             showCategoryDialog(noteUri);
+            return true;
+
+        } else if (id == R.id.context_toggle_todo) {    // 设为/取消待办
+            Cursor c = (Cursor) getListAdapter().getItem(info.position);
+            if (c != null) {
+                int isTodo = c.getInt(COLUMN_INDEX_IS_TODO);
+                ContentValues values = new ContentValues();
+                if (isTodo == 1) {
+                    // 取消待办，同时清空完成状态
+                    values.put(NotePad.Notes.COLUMN_NAME_IS_TODO, 0);
+                    values.put(NotePad.Notes.COLUMN_NAME_IS_DONE, 0);
+                } else {
+                    // 设为待办，默认未完成
+                    values.put(NotePad.Notes.COLUMN_NAME_IS_TODO, 1);
+                    values.put(NotePad.Notes.COLUMN_NAME_IS_DONE, 0);
+                }
+                getContentResolver().update(noteUri, values, null, null);
+                applyFilters(mCurrentCategoryFilter, mCurrentQuery);
+            }
+            return true;
+
+        } else if (id == R.id.context_toggle_done) {    // 标记完成/未完成
+            Cursor c = (Cursor) getListAdapter().getItem(info.position);
+            if (c != null) {
+                int isDone = c.getInt(COLUMN_INDEX_IS_DONE);
+                ContentValues values = new ContentValues();
+                // 只要点了这个按钮，一定是待办
+                values.put(NotePad.Notes.COLUMN_NAME_IS_TODO, 1);
+                values.put(NotePad.Notes.COLUMN_NAME_IS_DONE, isDone == 1 ? 0 : 1);
+                getContentResolver().update(noteUri, values, null, null);
+                applyFilters(mCurrentCategoryFilter, mCurrentQuery);
+            }
             return true;
 
         } else if (id == R.id.context_delete) {         // 删除

@@ -96,7 +96,7 @@ public class NoteEditor extends Activity {
             mRect = new Rect();
             mPaint = new Paint();
             mPaint.setStyle(Paint.Style.STROKE);
-            mPaint.setColor(0x800000FF);
+            mPaint.setColor(0x000000FF);
         }
 
         /**
